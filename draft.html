@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LEXLE — Draft UI</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f10;
+      --surface: #1a1a1c;
+      --border: #3a3a3c;
+      --text: #ffffff;
+      --subtext: #818384;
+      --correct: #538d4e;
+      --present: #b59f3b;
+      --absent: #3a3a3c;
+      --key-bg: #818384;
+      --key-text: #ffffff;
+      --tile-size: 62px;
+      --tile-gap: 6px;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      user-select: none;
+    }
+
+    /* ── HEADER ── */
+    header {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #fff 30%, #818384 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text);
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+    .icon-btn:hover { background: var(--surface); }
+    .icon-btn svg { width: 22px; height: 22px; fill: currentColor; }
+
+    /* ── TOAST ── */
+    .toast-area {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      justify-content: center;
+      padding: 8px 0 0;
+      height: 42px;
+    }
+    .toast {
+      background: var(--text);
+      color: var(--bg);
+      font-weight: 700;
+      font-size: 0.85rem;
+      padding: 8px 18px;
+      border-radius: 50px;
+      letter-spacing: 0.03em;
+      opacity: 1;
+    }
+
+    /* ── BOARD ── */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      padding: 16px 0 8px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-rows: repeat(6, var(--tile-size));
+      gap: var(--tile-gap);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(5, var(--tile-size));
+      gap: var(--tile-gap);
+    }
+
+    .tile {
+      width: var(--tile-size);
+      height: var(--tile-size);
+      border: 2px solid var(--border);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      transition: border-color 0.1s;
+      position: relative;
+    }
+
+    .tile.filled {
+      border-color: #565758;
+      animation: pop 0.1s ease-out;
+    }
+
+    .tile.correct  { background: var(--correct); border-color: var(--correct); }
+    .tile.present  { background: var(--present); border-color: var(--present); }
+    .tile.absent   { background: var(--absent);  border-color: var(--absent); }
+    .tile.cursor   { border-color: #fff; }
+
+    .tile.revealed {
+      border: none;
+    }
+
+    @keyframes pop {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+
+    /* ── KEYBOARD ── */
+    .keyboard {
+      width: 100%;
+      max-width: 500px;
+      padding: 0 8px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .key-row {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .key {
+      height: 58px;
+      min-width: 43px;
+      border: none;
+      border-radius: 6px;
+      background: var(--key-bg);
+      color: var(--key-text);
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-transform: uppercase;
+      flex: 1;
+      max-width: 43px;
+      transition: background 0.2s, transform 0.1s;
+      font-family: var(--font);
+    }
+
+    .key:active { transform: scale(0.94); }
+
+    .key.wide {
+      min-width: 65px;
+      max-width: 65px;
+      font-size: 0.75rem;
+      letter-spacing: 0.02em;
+    }
+
+    .key.correct { background: var(--correct); }
+    .key.present { background: var(--present); }
+    .key.absent  { background: var(--absent); color: #555; }
+
+    /* ── LEGEND ── */
+    .legend {
+      width: 100%;
+      max-width: 500px;
+      padding: 0 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .legend-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--subtext);
+      text-align: center;
+    }
+
+    .legend-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .legend-tile {
+      width: 36px;
+      height: 36px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.1rem;
+      border: 2px solid transparent;
+    }
+
+    .legend-text {
+      font-size: 0.8rem;
+      color: var(--subtext);
+    }
+
+    /* ── DRAFT BADGE ── */
+    .draft-badge {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #b59f3b;
+      color: #000;
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      padding: 6px 12px;
+      border-radius: 50px;
+      text-transform: uppercase;
+    }
+
+    /* ── DIVIDER ── */
+    hr {
+      width: 100%;
+      max-width: 500px;
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 4px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <button class="icon-btn" title="Help">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>
+    </button>
+    <span class="logo">Lexle</span>
+    <div class="header-actions">
+      <button class="icon-btn" title="Statistics">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H7v-2h5v2zm5-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+      </button>
+      <button class="icon-btn" title="New Word" style="background: var(--correct); border-radius: 8px;">
+        <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- TOAST -->
+  <div class="toast-area">
+    <div class="toast">Not in word list</div>
+  </div>
+
+  <!-- GAME BOARD -->
+  <main>
+    <div class="board">
+
+      <!-- Row 1: fully revealed — CRANE -->
+      <div class="row">
+        <div class="tile revealed absent">C</div>
+        <div class="tile revealed present">R</div>
+        <div class="tile revealed absent">A</div>
+        <div class="tile revealed correct">N</div>
+        <div class="tile revealed absent">E</div>
+      </div>
+
+      <!-- Row 2: fully revealed — SNOUT -->
+      <div class="row">
+        <div class="tile revealed correct">S</div>
+        <div class="tile revealed absent">N</div>
+        <div class="tile revealed absent">O</div>
+        <div class="tile revealed absent">U</div>
+        <div class="tile revealed absent">T</div>
+      </div>
+
+      <!-- Row 3: fully revealed — SPINE -->
+      <div class="row">
+        <div class="tile revealed correct">S</div>
+        <div class="tile revealed absent">P</div>
+        <div class="tile revealed correct">I</div>
+        <div class="tile revealed correct">N</div>
+        <div class="tile revealed absent">E</div>
+      </div>
+
+      <!-- Row 4: current guess typing — "SK" -->
+      <div class="row">
+        <div class="tile filled">S</div>
+        <div class="tile filled">K</div>
+        <div class="tile cursor"></div>
+        <div class="tile"></div>
+        <div class="tile"></div>
+      </div>
+
+      <!-- Rows 5-6: empty -->
+      <div class="row">
+        <div class="tile"></div><div class="tile"></div>
+        <div class="tile"></div><div class="tile"></div><div class="tile"></div>
+      </div>
+      <div class="row">
+        <div class="tile"></div><div class="tile"></div>
+        <div class="tile"></div><div class="tile"></div><div class="tile"></div>
+      </div>
+
+    </div>
+
+    <hr />
+
+    <!-- LEGEND -->
+    <div class="legend">
+      <div class="legend-title">How tiles work</div>
+      <div class="legend-row">
+        <div class="legend-tile correct">S</div>
+        <span class="legend-text">Correct letter, correct spot</span>
+      </div>
+      <div class="legend-row">
+        <div class="legend-tile present">R</div>
+        <span class="legend-text">Letter is in the word, wrong spot</span>
+      </div>
+      <div class="legend-row">
+        <div class="legend-tile absent">A</div>
+        <span class="legend-text">Letter not in the word</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- KEYBOARD -->
+  <div class="keyboard">
+    <div class="key-row">
+      <button class="key absent">Q</button>
+      <button class="key correct">W</button>
+      <button class="key absent">E</button>
+      <button class="key present">R</button>
+      <button class="key">T</button>
+      <button class="key">Y</button>
+      <button class="key">U</button>
+      <button class="key correct">I</button>
+      <button class="key">O</button>
+      <button class="key">P</button>
+    </div>
+    <div class="key-row">
+      <button class="key correct">A</button>
+      <button class="key correct">S</button>
+      <button class="key">D</button>
+      <button class="key">F</button>
+      <button class="key">G</button>
+      <button class="key">H</button>
+      <button class="key">J</button>
+      <button class="key">K</button>
+      <button class="key">L</button>
+    </div>
+    <div class="key-row">
+      <button class="key wide">Enter</button>
+      <button class="key absent">Z</button>
+      <button class="key">X</button>
+      <button class="key absent">C</button>
+      <button class="key">V</button>
+      <button class="key">B</button>
+      <button class="key correct">N</button>
+      <button class="key absent">M</button>
+      <button class="key wide">⌫</button>
+    </div>
+  </div>
+
+  <div class="draft-badge">Draft UI</div>
+
+</body>
+</html>
