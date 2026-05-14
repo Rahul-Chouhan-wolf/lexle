@@ -136,12 +136,22 @@
 </div>
 
 <!-- ─── GAME MODAL ─────────────────────────────────────────── -->
-<div id="game-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+<div id="game-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-y-auto py-6">
   <div id="game-modal-card" class="modal-enter bg-[#1a1a1c] border border-[#3a3a3c] rounded-2xl p-8 max-w-sm w-[90%] text-center shadow-2xl">
     <div id="modal-emoji" class="text-5xl mb-4"></div>
     <h2 id="modal-title" class="text-2xl font-extrabold text-white mb-1"></h2>
     <p id="modal-sub" class="text-[#818384] text-sm mb-5"></p>
-    <div id="modal-word" class="flex justify-center gap-2 mb-7"></div>
+    <div id="modal-word" class="flex justify-center gap-2 mb-5"></div>
+
+    <!-- Definition block -->
+    <div id="modal-definition" class="mb-6 text-left bg-[#0f0f10] rounded-xl p-4 min-h-[72px] flex flex-col gap-3">
+      <div id="modal-def-loading" class="flex items-center gap-2 text-[#555] text-xs">
+        <svg class="spinner w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        Loading definition…
+      </div>
+      <div id="modal-def-content" class="hidden flex flex-col gap-3"></div>
+    </div>
+
     <button id="btn-next" class="w-full bg-correct hover:bg-[#6aaf65] active:scale-95 text-white font-bold text-base py-3 rounded-xl transition-all duration-150 tracking-wide uppercase">Next Word →</button>
     <p class="text-[#555] text-xs mt-4">or press anywhere to continue</p>
   </div>
@@ -222,6 +232,7 @@ let answerPool = [];      // words used as answers (from Datamuse)
 let localWordSet = new Set(); // fast lookup for common words (answer pool + extras)
 let usedWords   = new Set();
 let validationCache = new Map(); // word → true/false (memoize dictionary API calls)
+let definitionCache = new Map(); // word → raw API response (reused for definitions)
 
 function setLoadingStatus(msg) {
   const el = document.getElementById('loading-status');
@@ -277,12 +288,47 @@ async function isValidWord(word) {
   try {
     const res = await fetch(`${DICTIONARY_URL}${encodeURIComponent(lower)}`);
     const valid = res.ok;
+    if (valid) {
+      // Store parsed data so showGameModal can reuse it without a second request
+      const data = await res.json();
+      definitionCache.set(lower, data);
+    }
     validationCache.set(lower, valid);
     return valid;
   } catch {
-    // If network fails during validation, accept the word so the game stays playable
     validationCache.set(lower, true);
     return true;
+  }
+}
+
+// Parse the Free Dictionary API response into a clean list of { pos, definition, example }
+function parseDictionaryData(data) {
+  if (!Array.isArray(data) || !data[0]?.meanings) return null;
+  const results = [];
+  for (const meaning of data[0].meanings) {
+    const defObj = meaning.definitions?.[0];
+    if (!defObj) continue;
+    results.push({
+      pos: meaning.partOfSpeech,
+      definition: defObj.definition,
+      example: defObj.example || null,
+    });
+    if (results.length >= 3) break; // cap at 3 meanings
+  }
+  return results.length ? results : null;
+}
+
+async function fetchDefinition(word) {
+  const lower = word.toLowerCase();
+  if (definitionCache.has(lower)) return parseDictionaryData(definitionCache.get(lower));
+  try {
+    const res = await fetch(`${DICTIONARY_URL}${encodeURIComponent(lower)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    definitionCache.set(lower, data);
+    return parseDictionaryData(data);
+  } catch {
+    return null;
   }
 }
 
@@ -448,12 +494,25 @@ function revealRow(r, tiles, onDone) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // GAME MODAL
 // ═══════════════════════════════════════════════════════════════════════════════
-function showGameModal(won, rowIdx) {
-  document.getElementById('modal-emoji').textContent   = won ? '🎉' : '😔';
-  document.getElementById('modal-title').textContent   = won ? 'You got it!' : 'Better luck next time';
-  document.getElementById('modal-sub').textContent     = won
+const POS_COLORS = {
+  noun:        'text-[#538d4e]',
+  verb:        'text-[#b59f3b]',
+  adjective:   'text-[#6196c8]',
+  adverb:      'text-[#a06cbf]',
+  pronoun:     'text-[#c86161]',
+  preposition: 'text-[#818384]',
+  conjunction: 'text-[#818384]',
+  interjection:'text-[#818384]',
+};
+
+async function showGameModal(won, rowIdx) {
+  document.getElementById('modal-emoji').textContent = won ? '🎉' : '😔';
+  document.getElementById('modal-title').textContent = won ? 'You got it!' : 'Better luck next time';
+  document.getElementById('modal-sub').textContent   = won
     ? `Solved in ${rowIdx} ${rowIdx === 1 ? 'guess' : 'guesses'}`
     : 'The word was';
+
+  // Render letter tiles
   const wordEl = document.getElementById('modal-word');
   wordEl.innerHTML = '';
   target.toUpperCase().split('').forEach(l => {
@@ -462,12 +521,45 @@ function showGameModal(won, rowIdx) {
     d.textContent = l;
     wordEl.appendChild(d);
   });
+
+  // Reset definition block to loading state
+  document.getElementById('modal-def-loading').classList.remove('hidden');
+  document.getElementById('modal-def-content').classList.add('hidden');
+  document.getElementById('modal-def-content').innerHTML = '';
+
+  // Show modal immediately so user isn't waiting on a blank screen
   const card = document.getElementById('game-modal-card');
   card.classList.remove('modal-enter');
   void card.offsetWidth;
   card.classList.add('modal-enter');
   document.getElementById('game-modal').classList.remove('hidden');
+
+  // Fetch definition (may already be cached from validation)
+  const meanings = await fetchDefinition(target);
+  document.getElementById('modal-def-loading').classList.add('hidden');
+  const contentEl = document.getElementById('modal-def-content');
+
+  if (!meanings) {
+    contentEl.innerHTML = `<p class="text-[#555] text-xs italic">No definition found for "${target}".</p>`;
+  } else {
+    meanings.forEach(({ pos, definition, example }) => {
+      const wrap = document.createElement('div');
+      const posColor = POS_COLORS[pos] || 'text-[#818384]';
+      wrap.innerHTML = `
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-[10px] font-bold uppercase tracking-widest ${posColor}">${pos}</span>
+          <div class="flex-1 h-px bg-[#2a2a2c]"></div>
+        </div>
+        <p class="text-[#ccc] text-sm leading-relaxed">${definition}</p>
+        ${example ? `<p class="text-[#555] text-xs italic mt-1">"${example}"</p>` : ''}
+      `;
+      contentEl.appendChild(wrap);
+    });
+  }
+
+  contentEl.classList.remove('hidden');
 }
+
 function hideGameModal() { document.getElementById('game-modal').classList.add('hidden'); }
 
 // ═══════════════════════════════════════════════════════════════════════════════
