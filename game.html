@@ -405,6 +405,17 @@ function setLoadingStatus(msg) {
   if (el) el.textContent = msg;
 }
 
+// Pre-mark every word in every curated category list as valid so the
+// dictionary API is never called for proper nouns (Italy, India, etc.)
+function preCacheAllCategoryWords() {
+  for (const cat of Object.values(CATEGORY_DATA)) {
+    if (!cat.words) continue;
+    for (const wordList of Object.values(cat.words)) {
+      for (const w of wordList) validationCache.set(w.toLowerCase(), true);
+    }
+  }
+}
+
 async function fetchPoolForLength(len) {
   if (poolsByLength[len]) return poolsByLength[len];
   const sp = '?'.repeat(len);
@@ -521,8 +532,8 @@ function computeLayout() {
   const maxSizes   = { 4:70, 5:62, 6:52, 7:44 };
   const tileSize   = Math.max(28, Math.min(fromWidth, fromHeight, maxSizes[wordLength]));
 
-  // Font size scales with tile
-  const tileFontSize = Math.max(0.85, tileSize * 0.47) + 'rem';
+  // Font size scales with tile (px, not rem — tileSize is in pixels)
+  const tileFontSize = Math.round(Math.max(14, tileSize * 0.47)) + 'px';
 
   // Keyboard key font
   const keyFontSize = Math.max(0.65, Math.min(0.85, vw / 480 * 0.85)) + 'rem';
@@ -858,6 +869,8 @@ async function submitGuess() {
 // ═══════════════════════════════════════════════════════════════
 function resetGame() {
   target      = getRandomWord();
+  // Ensure the answer itself is always accepted (critical for proper nouns)
+  validationCache.set(target.toLowerCase(), true);
   board       = Array.from({length:maxGuesses},()=>Array.from({length:wordLength},()=>({letter:'',state:'empty'})));
   currentRow  = 0; currentCol=0;
   keyMap      = {};
@@ -942,7 +955,7 @@ function renderScratchpad() {
       const tile     = document.createElement('div');
       const focused  = roughFocus?.row===ri && roughFocus?.col===ci;
       tile.className = `scratch-tile${focused?' focused':''}${letter?' has-letter':''}`;
-      tile.style.cssText = `width:${sz}px;height:${sz}px;font-size:${Math.max(0.65,sz*0.37)}rem;`;
+      tile.style.cssText = `width:${sz}px;height:${sz}px;font-size:${Math.round(Math.max(11,sz*0.37))}px;`;
       tile.textContent   = letter;
       tile.addEventListener('click', e => { e.stopPropagation(); roughFocus={row:ri,col:ci}; renderScratchpad(); });
       tilesWrap.appendChild(tile);
@@ -1165,10 +1178,11 @@ initDrag();
 // ═══════════════════════════════════════════════════════════════
 (async () => {
   computeLayout();
+  preCacheAllCategoryWords(); // mark all proper nouns etc. as valid before any API call
 
-  const count = await fetchPoolForLength(wordLength);
+  const pool = await fetchPoolForLength(wordLength);
   const badge = document.getElementById('word-count-badge');
-  badge.textContent = `${count} words`;
+  badge.textContent = `${pool.length} words`;
   badge.classList.remove('hidden');
 
   await new Promise(r => setTimeout(r, 500));
