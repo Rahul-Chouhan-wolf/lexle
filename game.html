@@ -22,6 +22,7 @@
     @keyframes modal-in    { from{opacity:0;transform:scale(0.88) translateY(16px)} to{opacity:1;transform:scale(1) translateY(0)} }
     @keyframes spin        { to{transform:rotate(360deg)} }
     @keyframes pulse-dot   { 0%,80%,100%{transform:scale(0);opacity:.5} 40%{transform:scale(1);opacity:1} }
+    @keyframes panel-in    { from{opacity:0;transform:scale(0.92) translateY(10px)} to{opacity:1;transform:scale(1) translateY(0)} }
 
     .pop          { animation: pop 0.1s ease-out; }
     .shake        { animation: shake 0.42s ease-out; }
@@ -29,18 +30,41 @@
     .toast-enter  { animation: toast-in  0.2s ease-out forwards; }
     .toast-exit   { animation: toast-out 0.3s ease-in  forwards; }
     .modal-enter  { animation: modal-in 0.28s cubic-bezier(.34,1.56,.64,1) forwards; }
+    .panel-enter  { animation: panel-in 0.2s ease-out forwards; }
     .spinner      { animation: spin 0.8s linear infinite; }
     .dot          { animation: pulse-dot 1.2s ease-in-out infinite both; }
-    .dot:nth-child(2) { animation-delay: 0.16s; }
-    .dot:nth-child(3) { animation-delay: 0.32s; }
+    .dot:nth-child(2){ animation-delay:.16s; }
+    .dot:nth-child(3){ animation-delay:.32s; }
 
-    .logo-text { background: linear-gradient(135deg,#fff 30%,#818384 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-    ::-webkit-scrollbar { display: none; }
+    .logo-text { background:linear-gradient(135deg,#fff 30%,#818384 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    ::-webkit-scrollbar { display:none; }
+
+    /* Settings pill buttons */
+    .pill { display:inline-flex; align-items:center; justify-content:center; padding:6px 14px; border-radius:50px; border:2px solid #3a3a3c; background:transparent; color:#818384; font-size:.8rem; font-weight:700; cursor:pointer; transition:all .15s; user-select:none; }
+    .pill:hover { border-color:#818384; color:#fff; }
+    .pill.active { border-color:transparent; background:#538d4e; color:#fff; }
+    .pill.active-yellow { border-color:transparent; background:#b59f3b; color:#fff; }
+    .pill.active-red    { border-color:transparent; background:#c84b4b; color:#fff; }
+
+    /* Scratchpad tile */
+    .scratch-tile {
+      width:40px; height:40px;
+      border:2px solid #3a3a3c;
+      border-radius:4px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:1.2rem; font-weight:800; text-transform:uppercase;
+      cursor:pointer; color:#fff; background:transparent;
+      transition:border-color .1s;
+      flex-shrink:0;
+    }
+    .scratch-tile:hover { border-color:#818384; }
+    .scratch-tile.focused { border-color:#538d4e; background:#0f2b1e; }
+    .scratch-tile.has-letter { border-color:#565758; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col items-center select-none">
 
-<!-- ─── LOADING SCREEN ─────────────────────────────────────── -->
+<!-- ── LOADING ─────────────────────────────────────────────── -->
 <div id="loading-screen" class="fixed inset-0 z-[100] bg-[#0f0f10] flex flex-col items-center justify-center gap-6">
   <h1 class="text-4xl font-extrabold tracking-[0.22em] uppercase logo-text">Lexle</h1>
   <div class="flex flex-col items-center gap-3">
@@ -53,32 +77,48 @@
   </div>
 </div>
 
-<!-- ─── HEADER ─────────────────────────────────────────────── -->
-<header class="w-full max-w-[500px] flex items-center justify-between px-4 py-3 border-b border-[#3a3a3c]">
-  <button id="btn-help" aria-label="How to play" class="w-9 h-9 flex items-center justify-center rounded-lg text-[#818384] hover:text-white hover:bg-[#1a1a1c] transition-colors">
-    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>
-  </button>
-  <div class="flex flex-col items-center">
-    <h1 class="text-[1.6rem] font-extrabold tracking-[0.22em] uppercase logo-text">Lexle</h1>
-    <span id="word-count-badge" class="text-[10px] text-[#555] tracking-widest hidden">— words loaded —</span>
+<!-- ── HEADER ──────────────────────────────────────────────── -->
+<header class="w-full max-w-[540px] flex items-center justify-between px-3 py-3 border-b border-[#3a3a3c]">
+  <div class="flex items-center gap-1">
+    <button id="btn-help" aria-label="How to play" class="w-9 h-9 flex items-center justify-center rounded-lg text-[#818384] hover:text-white hover:bg-[#1a1a1c] transition-colors">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>
+    </button>
+    <button id="btn-settings" aria-label="Settings" class="w-9 h-9 flex items-center justify-center rounded-lg text-[#818384] hover:text-white hover:bg-[#1a1a1c] transition-colors">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96a6.94 6.94 0 0 0-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.74 8.87a.47.47 0 0 0 .12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.47.47 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.37 1.04.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.47.47 0 0 0-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+    </button>
   </div>
-  <button id="btn-new" aria-label="New word" title="New word" class="w-9 h-9 flex items-center justify-center rounded-lg bg-correct hover:bg-[#6aaf65] active:scale-95 transition-all text-white">
-    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-  </button>
+
+  <div class="flex flex-col items-center">
+    <h1 class="text-[1.5rem] font-extrabold tracking-[0.22em] uppercase logo-text">Lexle</h1>
+    <div class="flex items-center gap-2 mt-0.5">
+      <span id="word-count-badge" class="text-[9px] text-[#555] tracking-widest hidden"></span>
+      <span id="hard-badge" class="hidden text-[9px] font-bold uppercase tracking-widest text-[#c84b4b] border border-[#c84b4b] px-1.5 py-0.5 rounded-full">Hard</span>
+      <span id="category-badge" class="hidden text-[9px] font-bold uppercase tracking-widest text-[#b59f3b] border border-[#b59f3b] px-1.5 py-0.5 rounded-full"></span>
+    </div>
+  </div>
+
+  <div class="flex items-center gap-1">
+    <button id="btn-scratch" aria-label="Scratchpad" title="Scratchpad" class="w-9 h-9 flex items-center justify-center rounded-lg text-[#818384] hover:text-white hover:bg-[#1a1a1c] transition-colors">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+    </button>
+    <button id="btn-new" aria-label="New word" title="New word" class="w-9 h-9 flex items-center justify-center rounded-lg bg-correct hover:bg-[#6aaf65] active:scale-95 transition-all text-white">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+    </button>
+  </div>
 </header>
 
-<!-- ─── TOAST ──────────────────────────────────────────────── -->
-<div id="toast-wrap" class="w-full max-w-[500px] flex justify-center h-10 items-center pointer-events-none mt-1"></div>
+<!-- ── TOAST ───────────────────────────────────────────────── -->
+<div id="toast-wrap" class="w-full max-w-[540px] flex justify-center h-10 items-center pointer-events-none mt-1"></div>
 
-<!-- ─── BOARD ──────────────────────────────────────────────── -->
+<!-- ── BOARD ───────────────────────────────────────────────── -->
 <main class="flex-1 flex items-center justify-center py-2">
   <div id="board" role="grid" aria-label="Game board" class="flex flex-col gap-[6px]"></div>
 </main>
 
-<!-- ─── KEYBOARD ───────────────────────────────────────────── -->
-<div id="keyboard" aria-label="Keyboard" class="w-full max-w-[500px] px-2 pb-4 flex flex-col gap-[7px]"></div>
+<!-- ── KEYBOARD ────────────────────────────────────────────── -->
+<div id="keyboard" aria-label="Keyboard" class="w-full max-w-[540px] px-2 pb-4 flex flex-col gap-[7px]"></div>
 
-<!-- ─── VALIDATING OVERLAY (shown briefly during API check) ── -->
+<!-- ── VALIDATING OVERLAY ──────────────────────────────────── -->
 <div id="validating" class="hidden fixed inset-0 z-40 pointer-events-none flex items-start justify-center pt-16">
   <div class="bg-[#1a1a1c] border border-[#3a3a3c] text-[#818384] text-xs font-bold px-4 py-2 rounded-full flex items-center gap-2">
     <svg class="spinner w-3 h-3 text-present" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
@@ -86,64 +126,125 @@
   </div>
 </div>
 
-<!-- ─── HELP MODAL ─────────────────────────────────────────── -->
+<!-- ── SETTINGS MODAL ──────────────────────────────────────── -->
+<div id="settings-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-y-auto py-6">
+  <div class="modal-enter bg-[#1a1a1c] border border-[#3a3a3c] rounded-2xl p-7 max-w-sm w-[90%] shadow-2xl">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-lg font-extrabold tracking-widest uppercase">Settings</h2>
+      <button id="settings-close" class="text-[#818384] hover:text-white transition-colors text-xl leading-none">✕</button>
+    </div>
+
+    <!-- Word Length -->
+    <div class="mb-6">
+      <p class="text-xs font-bold uppercase tracking-widest text-[#818384] mb-3">Word Length</p>
+      <div class="flex gap-2" id="length-pills">
+        <button class="pill" data-length="4">4</button>
+        <button class="pill active" data-length="5">5</button>
+        <button class="pill" data-length="6">6</button>
+        <button class="pill" data-length="7">7</button>
+      </div>
+    </div>
+
+    <!-- Difficulty -->
+    <div class="mb-6">
+      <p class="text-xs font-bold uppercase tracking-widest text-[#818384] mb-3">Difficulty</p>
+      <div class="flex gap-2" id="diff-pills">
+        <button class="pill" data-diff="easy">
+          <span class="flex flex-col items-center leading-tight">
+            <span>Easy</span><span class="text-[9px] opacity-60 font-normal">8 tries</span>
+          </span>
+        </button>
+        <button class="pill active" data-diff="normal">
+          <span class="flex flex-col items-center leading-tight">
+            <span>Normal</span><span class="text-[9px] opacity-60 font-normal">6 tries</span>
+          </span>
+        </button>
+        <button class="pill active-red" data-diff="hard">
+          <span class="flex flex-col items-center leading-tight">
+            <span>Hard</span><span class="text-[9px] opacity-60 font-normal">use hints</span>
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Category -->
+    <div class="mb-7">
+      <p class="text-xs font-bold uppercase tracking-widest text-[#818384] mb-3">Category</p>
+      <div class="flex flex-wrap gap-2" id="cat-pills">
+        <button class="pill active" data-cat="any">🔀 Any</button>
+        <button class="pill" data-cat="animals">🐾 Animals</button>
+        <button class="pill" data-cat="countries">🌍 Countries</button>
+        <button class="pill" data-cat="fruits">🍎 Fruits</button>
+        <button class="pill" data-cat="foods">🍕 Foods</button>
+        <button class="pill" data-cat="sports">⚽ Sports</button>
+        <button class="pill" data-cat="colors">🎨 Colors</button>
+      </div>
+      <p id="cat-warning" class="hidden mt-2 text-xs text-[#c84b4b]"></p>
+    </div>
+
+    <button id="btn-apply" class="w-full bg-correct hover:bg-[#6aaf65] active:scale-95 text-white font-bold py-3 rounded-xl transition-all uppercase tracking-wide">
+      Apply & New Game
+    </button>
+  </div>
+</div>
+
+<!-- ── HELP MODAL ──────────────────────────────────────────── -->
 <div id="help-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
   <div class="modal-enter bg-[#1a1a1c] border border-[#3a3a3c] rounded-2xl p-7 max-w-sm w-[90%] shadow-2xl">
     <div class="flex items-center justify-between mb-5">
-      <h2 class="text-lg font-extrabold text-white tracking-widest uppercase">How to Play</h2>
-      <button id="help-close" class="text-[#818384] hover:text-white transition-colors text-xl leading-none">✕</button>
+      <h2 class="text-lg font-extrabold tracking-widest uppercase">How to Play</h2>
+      <button id="help-close" class="text-[#818384] hover:text-white transition-colors text-xl">✕</button>
     </div>
     <p class="text-[#ccc] text-sm mb-5 leading-relaxed">
-      Guess the <strong class="text-white">LEXLE</strong> in 6 tries. Each guess must be a real 5-letter English word —
-      validated live against the dictionary. The colour of the tiles shows how close you are.
+      Guess the <strong class="text-white">LEXLE</strong> in 6 tries. Each guess must be a real English word.
+      Tile colours show how close you are.
     </p>
     <div class="border-t border-[#3a3a3c] pt-5 flex flex-col gap-5">
       <div>
-        <div class="flex gap-2 mb-2">
-          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold text-base bg-correct border-correct">W</div>
-          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold text-base bg-[#3a3a3c] border-[#3a3a3c]">E</div>
-          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold text-base bg-[#3a3a3c] border-[#3a3a3c]">A</div>
-          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold text-base bg-[#3a3a3c] border-[#3a3a3c]">R</div>
-          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold text-base bg-[#3a3a3c] border-[#3a3a3c]">Y</div>
+        <div class="flex gap-2 mb-1">
+          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold bg-correct border-correct">W</div>
+          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold bg-[#3a3a3c] border-[#3a3a3c]">E</div>
+          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold bg-[#3a3a3c] border-[#3a3a3c]">A</div>
+          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold bg-[#3a3a3c] border-[#3a3a3c]">R</div>
+          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold bg-[#3a3a3c] border-[#3a3a3c]">Y</div>
         </div>
         <p class="text-[#aaa] text-xs"><strong class="text-white">W</strong> is in the correct spot.</p>
       </div>
       <div>
-        <div class="flex gap-2 mb-2">
-          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold text-base bg-[#3a3a3c] border-[#3a3a3c]">P</div>
-          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold text-base bg-present border-present">I</div>
-          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold text-base bg-[#3a3a3c] border-[#3a3a3c]">L</div>
-          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold text-base bg-[#3a3a3c] border-[#3a3a3c]">L</div>
-          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold text-base bg-[#3a3a3c] border-[#3a3a3c]">S</div>
+        <div class="flex gap-2 mb-1">
+          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold bg-[#3a3a3c] border-[#3a3a3c]">P</div>
+          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold bg-present border-present">I</div>
+          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold bg-[#3a3a3c] border-[#3a3a3c]">L</div>
+          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold bg-[#3a3a3c] border-[#3a3a3c]">L</div>
+          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold bg-[#3a3a3c] border-[#3a3a3c]">S</div>
         </div>
-        <p class="text-[#aaa] text-xs"><strong class="text-white">I</strong> is in the word but in the wrong spot.</p>
+        <p class="text-[#aaa] text-xs"><strong class="text-white">I</strong> is in the word, wrong spot.</p>
       </div>
       <div>
-        <div class="flex gap-2 mb-2">
-          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold text-base bg-[#3a3a3c] border-[#3a3a3c]">V</div>
-          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold text-base bg-[#3a3a3c] border-[#3a3a3c]">A</div>
-          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold text-base bg-[#3a3a3c] border-[#3a3a3c]">G</div>
-          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold text-base bg-absent border-absent">U</div>
-          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold text-base bg-[#3a3a3c] border-[#3a3a3c]">E</div>
+        <div class="flex gap-2 mb-1">
+          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold bg-[#3a3a3c] border-[#3a3a3c]">V</div>
+          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold bg-[#3a3a3c] border-[#3a3a3c]">A</div>
+          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold bg-[#3a3a3c] border-[#3a3a3c]">G</div>
+          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold bg-absent border-absent">U</div>
+          <div class="w-10 h-10 border-2 rounded flex items-center justify-center text-white font-extrabold bg-[#3a3a3c] border-[#3a3a3c]">E</div>
         </div>
-        <p class="text-[#aaa] text-xs"><strong class="text-white">U</strong> is not in the word at all.</p>
+        <p class="text-[#aaa] text-xs"><strong class="text-white">U</strong> is not in the word.</p>
       </div>
     </div>
-    <div class="border-t border-[#3a3a3c] mt-5 pt-4 text-center">
-      <p class="text-[#555] text-xs">Guesses checked against the Free Dictionary API</p>
+    <div class="border-t border-[#3a3a3c] mt-5 pt-4">
+      <p class="text-[#818384] text-xs font-bold mb-1">⚙ Hard Mode</p>
+      <p class="text-[#555] text-xs">Every guess must use all green and yellow letters from previous guesses.</p>
     </div>
   </div>
 </div>
 
-<!-- ─── GAME MODAL ─────────────────────────────────────────── -->
+<!-- ── GAME MODAL ──────────────────────────────────────────── -->
 <div id="game-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-y-auto py-6">
   <div id="game-modal-card" class="modal-enter bg-[#1a1a1c] border border-[#3a3a3c] rounded-2xl p-8 max-w-sm w-[90%] text-center shadow-2xl">
     <div id="modal-emoji" class="text-5xl mb-4"></div>
     <h2 id="modal-title" class="text-2xl font-extrabold text-white mb-1"></h2>
     <p id="modal-sub" class="text-[#818384] text-sm mb-5"></p>
-    <div id="modal-word" class="flex justify-center gap-2 mb-5"></div>
-
-    <!-- Definition block -->
+    <div id="modal-word" class="flex justify-center gap-2 mb-5 flex-wrap"></div>
     <div id="modal-definition" class="mb-6 text-left bg-[#0f0f10] rounded-xl p-4 min-h-[72px] flex flex-col gap-3">
       <div id="modal-def-loading" class="flex items-center gap-2 text-[#555] text-xs">
         <svg class="spinner w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
@@ -151,233 +252,268 @@
       </div>
       <div id="modal-def-content" class="hidden flex flex-col gap-3"></div>
     </div>
-
-    <button id="btn-next" class="w-full bg-correct hover:bg-[#6aaf65] active:scale-95 text-white font-bold text-base py-3 rounded-xl transition-all duration-150 tracking-wide uppercase">Next Word →</button>
+    <button id="btn-next" class="w-full bg-correct hover:bg-[#6aaf65] active:scale-95 text-white font-bold text-base py-3 rounded-xl transition-all tracking-wide uppercase">Next Word →</button>
     <p class="text-[#555] text-xs mt-4">or press anywhere to continue</p>
   </div>
 </div>
 
+<!-- ── SCRATCHPAD FLOATING PANEL ───────────────────────────── -->
+<div id="scratchpad" class="hidden fixed z-30 bg-[#1a1a1c] border border-[#3a3a3c] rounded-2xl shadow-2xl" style="bottom:90px;right:16px;min-width:220px;">
+  <!-- Drag handle / header -->
+  <div id="scratch-header" class="flex items-center justify-between px-4 py-3 border-b border-[#3a3a3c] cursor-grab active:cursor-grabbing rounded-t-2xl select-none">
+    <div class="flex items-center gap-2">
+      <svg class="w-3.5 h-3.5 text-[#818384]" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+      <span class="text-xs font-bold uppercase tracking-widest text-[#818384]">Scratchpad</span>
+    </div>
+    <button id="scratch-close" class="text-[#818384] hover:text-white text-lg leading-none transition-colors ml-4">✕</button>
+  </div>
+
+  <!-- Rows -->
+  <div id="scratch-rows" class="px-4 py-3 flex flex-col gap-2"></div>
+
+  <!-- Add row -->
+  <div class="px-4 pb-4">
+    <button id="scratch-add" class="w-full flex items-center justify-center gap-2 border-2 border-dashed border-[#3a3a3c] hover:border-[#818384] rounded-xl py-2 text-[#555] hover:text-[#818384] text-sm font-bold transition-colors">
+      <span class="text-lg leading-none">+</span> Add Row
+    </button>
+  </div>
+</div>
+
 <script>
-// ═══════════════════════════════════════════════════════════════════════════════
-// APIS
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// CATEGORY WORD LISTS
+// ═══════════════════════════════════════════════════════════════
+const CATEGORY_DATA = {
+  any: { label: 'Any', emoji: '🔀', words: null },
 
-const DATAMUSE_URL   = 'https://api.datamuse.com/words?sp=?????&md=f&max=1000';
-const DICTIONARY_URL = 'https://api.dictionaryapi.dev/api/v2/entries/en/';
+  animals: {
+    label: 'Animals', emoji: '🐾',
+    words: {
+      4: ['bear','boar','buck','bull','clam','colt','crab','crow','deer','dove','duck','fawn','flea','frog','gnat','hare','hawk','ibis','kite','lark','lion','lynx','mink','mole','moth','mule','newt','pike','pony','puma','slug','swan','toad','wasp','wolf','worm'],
+      5: ['bison','camel','cobra','crane','dingo','eagle','egret','finch','gecko','goose','heron','hippo','horse','hyena','koala','llama','moose','mouse','otter','panda','quail','raven','robin','shark','sheep','skunk','sloth','snail','snake','squid','stork','tapir','tiger','trout','viper','whale','zebra'],
+      6: ['badger','beaver','canary','cougar','coyote','donkey','falcon','ferret','gibbon','gopher','iguana','impala','jaguar','lizard','magpie','monkey','osprey','parrot','pigeon','puffin','python','rabbit','salmon','toucan','turtle','walrus','wombat'],
+      7: ['buffalo','caribou','cheetah','dolphin','gazelle','gorilla','grizzly','hamster','leopard','lobster','manatee','narwhal','octopus','panther','peacock','pelican','penguin','piranha','raccoon','rooster','sparrow','vulture','wallaby','warbler'],
+    }
+  },
 
-// Minimal fallback if Datamuse is unreachable (keeps the game playable offline)
-const FALLBACK_WORDS = [
-  "abbey","about","above","acute","admit","adobe","adopt","adult","after","again",
-  "agile","alarm","album","alert","alive","alone","along","alter","angel","anger",
-  "angle","angry","apart","apple","apply","arena","arise","armor","aroma","array",
-  "attic","audio","audit","avoid","awake","award","aware","awful","baker","basic",
-  "batch","beach","began","begin","below","bench","birth","black","blade","blame",
-  "bland","blank","blast","blaze","blend","bless","blind","block","bloom","blown",
-  "board","boost","bound","boxer","brain","brand","brave","bread","break","breed",
-  "brick","bride","brief","bring","broad","broke","brook","broth","brown","brush",
-  "build","built","burst","buyer","cabin","camel","canal","carry","catch","cause",
-  "chair","chaos","charm","chart","chase","cheap","cheat","check","chess","chest",
-  "chief","child","choir","chunk","civil","clash","class","clean","clear","climb",
-  "clock","clone","close","cloth","cloud","comet","coral","count","crack","craft",
-  "crane","crash","cream","creek","crest","crime","crisp","cross","crown","crude",
-  "crush","cubic","curve","cycle","dance","death","decay","delta","depot","depth",
-  "digit","dirty","dodge","draft","drain","drama","dream","dress","drift","drink",
-  "drive","drone","dwarf","dying","eager","early","earth","eight","elite","ember",
-  "empty","enemy","enjoy","enter","equal","error","essay","exact","exist","extra",
-  "fable","faith","fancy","fatal","fault","feast","fence","ferry","field","fifty",
-  "final","first","flame","flare","flash","fleet","flesh","float","flood","floor",
-  "flour","fluid","flute","force","forge","forth","forum","found","frame","frank",
-  "fraud","freak","fresh","front","frost","fruit","funny","furry","fuzzy","ghost",
-  "giant","given","glass","glide","globe","gloom","glory","gloss","glove","grace",
-  "grade","grain","grand","grape","grasp","grass","grave","great","greed","green",
-  "greet","grief","grind","groan","group","grove","grown","guard","guide","guild",
-  "habit","happy","harsh","haven","heart","heavy","herbs","hinge","hotel","human",
-  "humid","humor","hyper","ideal","image","imply","infer","inner","input","intro",
-  "issue","joker","juice","jumpy","knack","knife","knock","known","label","lance",
-  "large","later","laugh","layer","learn","least","leave","legal","lemon","level",
-  "light","local","lodge","logic","loose","lover","lucky","lunge","lyric","magic",
-  "major","maker","manor","maple","march","marsh","match","mayor","media","mercy",
-  "merge","messy","metal","might","minor","minus","mixed","model","money","month",
-  "moral","mouth","movie","music","naval","nerve","never","night","noble","noise",
-  "north","noted","novel","offer","often","onset","opera","orbit","order","outer",
-  "oxide","ozone","paint","panel","panic","paper","party","patch","peace","peach",
-  "pearl","pilot","place","plain","plane","plant","plaza","point","poker","polar",
-  "poppy","porch","power","press","price","prime","print","prior","prize","probe",
-  "proof","pulse","punch","pupil","purse","queen","quest","quick","rally","ranch",
-  "range","rapid","reach","rebel","reign","rider","right","risky","robin","robot",
-  "rouge","rough","round","royal","ruler","rusty","saint","salad","sauce","scale",
-  "scare","scene","scout","sense","serve","seven","shaft","shame","shape","share",
-  "shark","sharp","sheep","shelf","shell","shift","shine","shirt","shock","shore",
-  "short","shout","sight","skill","skull","sleep","slice","slide","slope","slump",
-  "smash","smell","smoke","snack","snail","snake","sneak","solar","solid","solve",
-  "sorry","south","space","speak","spend","spice","spine","spoon","sport","spray",
-  "squad","staff","stage","stain","stamp","stand","stark","start","state","steam",
-  "steel","steep","stern","still","stock","stomp","stone","storm","story","stout",
-  "strap","straw","study","stuff","style","sugar","sunny","super","surge","swamp",
-  "swear","sweet","swift","swirl","sword","table","taste","teach","thorn","throw",
-  "thumb","tiger","tired","title","token","tonic","torch","total","touch","towel",
-  "toxic","trace","track","trade","trail","train","trait","trash","tread","treat",
-  "trend","trial","tribe","trick","trout","truce","truly","trunk","truth","tutor",
-  "twice","twist","ultra","union","until","upset","usual","utter","value","vault",
-  "venom","verge","verse","video","viral","virus","visit","vista","vivid","vocal",
-  "voice","voter","vowel","waltz","waste","watch","water","weary","weave","wedge",
-  "weird","whale","wheat","wheel","while","whole","windy","woman","world","worry",
-  "worse","worth","wrath","wrist","wrong","wrote","yearn","yield","young","youth",
-];
+  countries: {
+    label: 'Countries', emoji: '🌍',
+    words: {
+      4: ['chad','cuba','fiji','iran','iraq','laos','mali','oman','peru','togo'],
+      5: ['benin','chile','china','egypt','ghana','india','italy','japan','kenya','libya','nauru','nepal','niger','qatar','spain','sudan','syria','tonga','wales','yemen'],
+      6: ['angola','belize','brazil','canada','france','greece','guinea','israel','jordan','kuwait','malawi','mexico','monaco','norway','panama','poland','russia','serbia','sweden','taiwan','turkey','uganda','zambia'],
+      7: ['albania','algeria','andorra','armenia','austria','bahrain','belarus','belgium','bolivia','croatia','denmark','ecuador','finland','georgia','germany','hungary','iceland','ireland','jamaica','moldova','myanmar','namibia','nigeria','romania','senegal','somalia','ukraine','uruguay','vanuatu','vietnam'],
+    }
+  },
 
-// ═══════════════════════════════════════════════════════════════════════════════
+  fruits: {
+    label: 'Fruits', emoji: '🍎',
+    words: {
+      4: ['date','fig','kiwi','lime','pear','plum'],
+      5: ['apple','grape','guava','lemon','mango','melon','peach','prune'],
+      6: ['banana','cherry','durian','lychee','orange','papaya','pomelo','quince','raisin'],
+      7: ['apricot','avocado','coconut','kumquat','tangelo'],
+    }
+  },
+
+  foods: {
+    label: 'Foods', emoji: '🍕',
+    words: {
+      4: ['beef','beet','bran','cake','clam','corn','crab','curd','dill','duck','eggs','herb','kale','lamb','leek','meat','milk','okra','rice','sage','soup','taco','tofu','tuna','veal','yolk'],
+      5: ['bagel','bacon','bread','candy','chips','cocoa','cream','crepe','curry','donut','fudge','gravy','grits','honey','kebab','liver','mochi','nacho','onion','pasta','pizza','queso','salad','salsa','sauce','steak','sushi','syrup','taffy','tapas','toast','wafer'],
+      6: ['burger','cereal','cheese','cookie','danish','fondue','hummus','kimchi','muffin','noodle','paella','phyllo','quiche','scones','sorbet','waffle','yogurt'],
+      7: ['biscuit','brownie','cabbage','caramel','chicken','chorizo','granola','goulash','lasagna','oatmeal','pancake','popcorn','pretzel','risotto','sausage','strudel'],
+    }
+  },
+
+  sports: {
+    label: 'Sports', emoji: '⚽',
+    words: {
+      4: ['golf','luge','polo','sumo','surf'],
+      5: ['bocce','chess','darts','joust','relay','rodeo','rugby','skeet','track'],
+      6: ['boxing','diving','hockey','karate','rowing','skiing','soccer','squash','tennis'],
+      7: ['archery','bowling','cricket','cycling','fencing','fishing','hurdles','javelin','sailing','surfing','walking'],
+    }
+  },
+
+  colors: {
+    label: 'Colors', emoji: '🎨',
+    words: {
+      4: ['blue','buff','cyan','ecru','fawn','gold','gray','grey','jade','lime','navy','onyx','pink','plum','rose','ruby','rust','sage','teal'],
+      5: ['amber','azure','beige','black','blaze','brass','brick','brown','camel','cocoa','coral','cream','ebony','ember','flax','green','hazel','honey','ivory','khaki','lilac','mauve','ocher','olive','peach','rouge','sepia','smoke','steel','straw','taupe','umber','white'],
+      6: ['auburn','bisque','bistre','bluing','cerise','citron','claret','cobalt','copper','desert','fallow','flaxen','garnet','golden','indigo','jasper','laurel','madder','maroon','myrtle','orange','orchid','pewter','purple','raisin','russet','salmon','sienna','silver','sorrel','timber','violet','walnut','yellow'],
+      7: ['apricot','chamois','crimson','fuchsia','magenta','mustard','scarlet','thistle'],
+    }
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════
+// APIS & FALLBACK
+// ═══════════════════════════════════════════════════════════════
+const DATAMUSE_BASE   = 'https://api.datamuse.com/words?sp=';
+const DATAMUSE_SUFFIX = '&md=f&max=1000';
+const DICTIONARY_URL  = 'https://api.dictionaryapi.dev/api/v2/entries/en/';
+
+const FALLBACK = {
+  4: ['bear','belt','bird','bold','bond','book','boot','bore','born','bush','byte','calm','card','cave','code','coin','cool','core','dark','dart','dusk','dust','epic','face','fair','fall','fame','fare','farm','fast','fate','firm','fish','fist','flag','flaw','fold','folk','fond','font','ford','form','fort','foul','free','fuel','full','fund','gain','gale','game','gate','gaze','gift','glow','glue','goal','gold','golf','gown','gray','grin','grip','grow','gulf','gust','haze','heal','heap','heat','heel','hero','hill','hint','hold','hole','holy','home','hone','hood','hope','horn','host','hour','hull','hunt','hurl','hurt','icon','idea','idle','iris','isle','jest','join','joke','jump','just','keen','kept','kick','kind','king','knot','lace','lack','lake','lamb','land','lane','lava','lawn','laze','lead','leaf','lean','leap','lend','lens','link','lion','list','live','lock','loft','loom','loop','lore','lush','made','mane','mark','mask','mast','maze','mean','meet','melt','menu','mere','mesh','mild','mill','mind','mint','miss','mist','mode','mood','moon','moor','more','most','moat','move','much','myth','nail','name','need','nest','news','next','nice','nine','node','norm','note','noon'],
+  5: ['about','above','acute','admit','adobe','adopt','adult','after','again','agile','alarm','album','alert','alive','alone','along','alter','angel','anger','angle','angry','apart','apple','apply','arena','arise','armor','aroma','array','attic','audio','audit','avoid','awake','award','aware','awful','baker','basic','batch','beach','began','begin','below','bench','birth','black','blade','blame','bland','blank','blast','blaze','blend','bless','blind','block','bloom','blown','board','boost','bound','boxer','brain','brand','brave','bread','break','breed','brick','bride','brief','bring','broad','broke','brook','broth','brown','brush','build','built','burst','buyer','cabin','carry','catch','cause','chair','chaos','charm','chart','chase','cheap','cheat','check','chess','chest','chief','child','choir','chunk','civil','clash','class','clean','clear','climb','clock','clone','close','cloth','cloud','comet','coral','count','crack','craft','crane','crash','cream','creek','crest','crime','crisp','cross','crown','crude','crush','cubic','curve','cycle','dance','death','decay','delta','depot','depth','digit','dirty','dodge','draft','drain','drama','dream','dress','drift','drink','drive','drone','dwarf'],
+  6: ['abroad','absorb','accent','advice','afford','afraid','agency','agreed','alight','almost','amount','animal','annual','answer','appear','branch','bridge','bright','broken','budget','canvas','castle','cotton','course','create','crisis','debate','define','design','detail','divine','domain','double','driven','effect','effort','emerge','empire','engine','entire','equity','fabric','factor','famous','finish','flight','forest','formal','fossil','frozen','future','garden','gentle','giving','glance','global','golden','ground','growth','guided','happen','hidden','impact','import','income','insist','island','joined','jungle','keeper','kernel','launch','leader','league','legend','lonely','lookup','manage','margin','market','mirror','moment','moving','narrow','nearly','notice','number','object','obtain','office','option','origin','output','palace','parent','patent','person','planet','player','plural','pocket','prince','profit','proper','purple','puzzle','reform'],
+  7: ['abstain','account','achieve','acquire','ancient','another','awesome','balance','capable','century','chapter','climate','command','company','complex','compute','connect','content','context','control','country','courage','covered','culture','defense','default','develop','diagram','discuss','disease','diverse','edition','element','emotion','example','express','failure','feature','genuine','harvest','history','hundred','imagine','improve','include','initial','intense','involve','journey','justice','kingdom','knowing','largely','library','limited','minimum','miracle','mission','monster','natural','network','nothing','obvious','opinion','overall','passage','pattern','perfect','perhaps','popular','problem','product','program','protect','provide','purpose','quality','quickly','qualify','reality','receive','recover','reflect','regular','replace','request','require','resolve','restore','returns','reunion','romance','science','silence','similar','sitting','society','someone','somehow','strange','subject','success','suppose','sustain','teacher','thought','through','totally','traffic','trouble','typical','uniform','upgrade','variety','various','version','village','waiting','website','welcome','whether','without'],
+};
+
+// ═══════════════════════════════════════════════════════════════
+// SETTINGS STATE
+// ═══════════════════════════════════════════════════════════════
+let wordLength  = 5;
+let difficulty  = 'normal';   // easy | normal | hard
+let category    = 'any';
+let maxGuesses  = 6;
+
+// ═══════════════════════════════════════════════════════════════
 // WORD POOL STATE
-// ═══════════════════════════════════════════════════════════════════════════════
-let answerPool = [];      // words used as answers (from Datamuse)
-let localWordSet = new Set(); // fast lookup for common words (answer pool + extras)
-let usedWords   = new Set();
-let validationCache = new Map(); // word → true/false (memoize dictionary API calls)
-let definitionCache = new Map(); // word → raw API response (reused for definitions)
+// ═══════════════════════════════════════════════════════════════
+// poolsByLength[n] = array of words fetched from Datamuse for length n
+let poolsByLength   = {};
+let usedWords       = new Set();
+let validationCache = new Map();
+let definitionCache = new Map();
 
 function setLoadingStatus(msg) {
   const el = document.getElementById('loading-status');
   if (el) el.textContent = msg;
 }
 
-async function fetchWordPool() {
-  setLoadingStatus('Fetching words from Datamuse…');
+async function fetchPoolForLength(len) {
+  if (poolsByLength[len]) return poolsByLength[len];
+  const sp = '?'.repeat(len);
+  setLoadingStatus(`Fetching ${len}-letter words…`);
   try {
-    const res = await fetch(DATAMUSE_URL);
-    if (!res.ok) throw new Error('Datamuse unavailable');
-    const data = await res.json();
-
-    // Keep only plain alphabetic 5-letter words, sorted by Datamuse score (frequency)
-    const words = data
-      .map(w => w.word.toLowerCase())
-      .filter(w => /^[a-z]{5}$/.test(w));
-
-    if (words.length < 50) throw new Error('Too few words returned');
-
-    answerPool = words;
-    localWordSet = new Set(words);
-
-    // Pre-cache them all as valid
+    const res = await fetch(`${DATAMUSE_BASE}${sp}${DATAMUSE_SUFFIX}`);
+    if (!res.ok) throw new Error();
+    const data  = await res.json();
+    const words = data.map(w => w.word.toLowerCase()).filter(w => /^[a-z]+$/.test(w) && w.length === len);
+    if (words.length < 20) throw new Error('too few');
     words.forEach(w => validationCache.set(w, true));
-
-    setLoadingStatus(`${words.length} words loaded ✓`);
-    return words.length;
-  } catch (err) {
-    console.warn('Datamuse failed, using fallback:', err.message);
-    setLoadingStatus('Using offline word list…');
-    answerPool = [...FALLBACK_WORDS];
-    localWordSet = new Set(FALLBACK_WORDS);
-    FALLBACK_WORDS.forEach(w => validationCache.set(w, true));
-    return answerPool.length;
+    poolsByLength[len] = words;
+    return words;
+  } catch {
+    poolsByLength[len] = [...(FALLBACK[len] || [])];
+    (FALLBACK[len] || []).forEach(w => validationCache.set(w, true));
+    return poolsByLength[len];
   }
 }
 
+function getAnswerPool() {
+  if (category !== 'any') {
+    const cat = CATEGORY_DATA[category];
+    const catWords = cat?.words?.[wordLength] || [];
+    if (catWords.length >= 4) return catWords;
+  }
+  return poolsByLength[wordLength] || FALLBACK[wordLength] || [];
+}
+
 function getRandomWord() {
-  const remaining = answerPool.filter(w => !usedWords.has(w));
-  const pool = remaining.length > 0 ? remaining : answerPool;
+  const pool = getAnswerPool();
+  const remaining = pool.filter(w => !usedWords.has(w));
+  const src = remaining.length > 0 ? remaining : pool;
   if (!remaining.length) usedWords.clear();
-  const w = pool[Math.floor(Math.random() * pool.length)];
+  const w = src[Math.floor(Math.random() * src.length)];
   usedWords.add(w);
   return w;
 }
 
-// Validate via Free Dictionary API; localWordSet is the fast-path
 async function isValidWord(word) {
   const lower = word.toLowerCase();
   if (validationCache.has(lower)) return validationCache.get(lower);
-
   try {
     const res = await fetch(`${DICTIONARY_URL}${encodeURIComponent(lower)}`);
-    const valid = res.ok;
-    if (valid) {
-      // Store parsed data so showGameModal can reuse it without a second request
-      const data = await res.json();
-      definitionCache.set(lower, data);
-    }
-    validationCache.set(lower, valid);
-    return valid;
+    const ok = res.ok;
+    if (ok) { const d = await res.json(); definitionCache.set(lower, d); }
+    validationCache.set(lower, ok);
+    return ok;
   } catch {
     validationCache.set(lower, true);
     return true;
   }
 }
 
-// Parse the Free Dictionary API response into a clean list of { pos, definition, example }
-function parseDictionaryData(data) {
+function parseDef(data) {
   if (!Array.isArray(data) || !data[0]?.meanings) return null;
-  const results = [];
-  for (const meaning of data[0].meanings) {
-    const defObj = meaning.definitions?.[0];
-    if (!defObj) continue;
-    results.push({
-      pos: meaning.partOfSpeech,
-      definition: defObj.definition,
-      example: defObj.example || null,
-    });
-    if (results.length >= 3) break; // cap at 3 meanings
+  const out = [];
+  for (const m of data[0].meanings) {
+    const d = m.definitions?.[0];
+    if (!d) continue;
+    out.push({ pos: m.partOfSpeech, definition: d.definition, example: d.example || null });
+    if (out.length >= 3) break;
   }
-  return results.length ? results : null;
+  return out.length ? out : null;
 }
 
 async function fetchDefinition(word) {
   const lower = word.toLowerCase();
-  if (definitionCache.has(lower)) return parseDictionaryData(definitionCache.get(lower));
+  if (definitionCache.has(lower)) return parseDef(definitionCache.get(lower));
   try {
     const res = await fetch(`${DICTIONARY_URL}${encodeURIComponent(lower)}`);
     if (!res.ok) return null;
-    const data = await res.json();
-    definitionCache.set(lower, data);
-    return parseDictionaryData(data);
-  } catch {
-    return null;
-  }
+    const d = await res.json();
+    definitionCache.set(lower, d);
+    return parseDef(d);
+  } catch { return null; }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// GAME CONSTANTS & STATE
-// ═══════════════════════════════════════════════════════════════════════════════
-const WORD_LENGTH   = 5;
-const MAX_GUESSES   = 6;
+// ═══════════════════════════════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════════════════════════════
 const KEYBOARD_ROWS = [
   ['Q','W','E','R','T','Y','U','I','O','P'],
   ['A','S','D','F','G','H','J','K','L'],
   ['ENTER','Z','X','C','V','B','N','M','⌫'],
 ];
-const WIN_MESSAGES = ['Genius!','Magnificent!','Impressive!','Splendid!','Great!','Phew!'];
+const WIN_MSGS = ['Genius!','Magnificent!','Impressive!','Splendid!','Great!','Phew!'];
+const POS_COLORS = { noun:'text-[#538d4e]', verb:'text-[#b59f3b]', adjective:'text-[#6196c8]', adverb:'text-[#a06cbf]' };
 
-let target     = '';
-let board      = [];
-let currentRow = 0;
-let currentCol = 0;
-let keyMap     = {};
-let status     = 'playing';
-let isRevealing   = false;
-let isValidating  = false;
+let target      = '';
+let board       = [];
+let currentRow  = 0;
+let currentCol  = 0;
+let keyMap      = {};
+let status      = 'playing';
+let isRevealing = false;
+let isValidating= false;
+// Hard mode — accumulated constraints
+let hardCorrect = {}; // index → letter
+let hardPresent = new Set(); // letters that must appear
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// RENDERING
-// ═══════════════════════════════════════════════════════════════════════════════
-function tileClasses(state) {
-  const base = 'w-[62px] h-[62px] flex items-center justify-center text-3xl font-extrabold uppercase rounded-[4px] border-2 transition-colors duration-75';
-  if (state === 'correct') return `${base} border-correct bg-correct text-white`;
-  if (state === 'present') return `${base} border-present bg-present text-white`;
-  if (state === 'absent')  return `${base} border-[#3a3a3c] bg-[#3a3a3c] text-[#666]`;
-  if (state === 'tbd')     return `${base} border-[#565758] bg-transparent text-white`;
-  return                         `${base} border-[#3a3a3c] bg-transparent text-white`;
+// Tile size by word length
+const TILE_SIZES = { 4:'68px', 5:'62px', 6:'52px', 7:'44px' };
+const TILE_FONTS = { 4:'1.9rem', 5:'1.8rem', 6:'1.5rem', 7:'1.25rem' };
+
+// ═══════════════════════════════════════════════════════════════
+// RENDERING — BOARD
+// ═══════════════════════════════════════════════════════════════
+function tileStyle(state) {
+  const sz = TILE_SIZES[wordLength];
+  const base = `width:${sz};height:${sz};display:flex;align-items:center;justify-content:center;font-size:${TILE_FONTS[wordLength]};font-weight:800;text-transform:uppercase;border-radius:4px;border:2px solid;transition:background .1s;`;
+  if (state === 'correct') return base + 'background:#538d4e;border-color:#538d4e;color:#fff;';
+  if (state === 'present') return base + 'background:#b59f3b;border-color:#b59f3b;color:#fff;';
+  if (state === 'absent')  return base + 'background:#3a3a3c;border-color:#3a3a3c;color:#666;';
+  if (state === 'tbd')     return base + 'background:transparent;border-color:#565758;color:#fff;';
+  return                          base + 'background:transparent;border-color:#3a3a3c;color:#fff;';
 }
 
 function renderBoard() {
   const el = document.getElementById('board');
   el.innerHTML = '';
-  for (let r = 0; r < MAX_GUESSES; r++) {
+  for (let r = 0; r < maxGuesses; r++) {
     const row = document.createElement('div');
-    row.className = 'flex gap-[6px]';
     row.id = `row-${r}`;
-    for (let c = 0; c < WORD_LENGTH; c++) {
-      const tile = board[r]?.[c] || { letter: '', state: 'empty' };
+    row.style.cssText = `display:flex;gap:6px;`;
+    for (let c = 0; c < wordLength; c++) {
+      const t = board[r]?.[c] || { letter:'', state:'empty' };
       const div = document.createElement('div');
-      div.className = `tile ${tileClasses(tile.state)}`;
       div.id = `tile-${r}-${c}`;
-      div.textContent = tile.letter;
+      div.style.cssText = tileStyle(t.state);
+      div.textContent = t.letter;
       row.appendChild(div);
     }
     el.appendChild(row);
@@ -388,69 +524,65 @@ function updateTile(r, c) {
   const el = document.getElementById(`tile-${r}-${c}`);
   if (!el) return;
   const t = board[r][c];
-  el.className = `tile ${tileClasses(t.state)}`;
+  el.style.cssText = tileStyle(t.state);
   el.textContent = t.letter;
 }
 
 function popTile(r, c) {
   const el = document.getElementById(`tile-${r}-${c}`);
   if (!el) return;
-  el.classList.remove('pop');
-  void el.offsetWidth;
-  el.classList.add('pop');
-  el.addEventListener('animationend', () => el.classList.remove('pop'), { once: true });
+  el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+  el.addEventListener('animationend', () => el.classList.remove('pop'), { once:true });
 }
 
 function shakeRow(r) {
   const el = document.getElementById(`row-${r}`);
   if (!el) return;
-  el.classList.remove('shake');
-  void el.offsetWidth;
-  el.classList.add('shake');
-  el.addEventListener('animationend', () => el.classList.remove('shake'), { once: true });
+  el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake');
+  el.addEventListener('animationend', () => el.classList.remove('shake'), { once:true });
 }
 
 function bounceRow(r) {
-  for (let c = 0; c < WORD_LENGTH; c++) {
+  for (let c = 0; c < wordLength; c++) {
     const el = document.getElementById(`tile-${r}-${c}`);
     if (!el) continue;
     el.style.animationDelay = `${c * 80}ms`;
-    el.classList.remove('bounce');
-    void el.offsetWidth;
-    el.classList.add('bounce');
-    el.addEventListener('animationend', () => { el.classList.remove('bounce'); el.style.animationDelay = ''; }, { once: true });
+    el.classList.remove('bounce'); void el.offsetWidth; el.classList.add('bounce');
+    el.addEventListener('animationend', () => { el.classList.remove('bounce'); el.style.animationDelay=''; }, { once:true });
   }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// RENDERING — KEYBOARD
+// ═══════════════════════════════════════════════════════════════
 function renderKeyboard() {
   const kb = document.getElementById('keyboard');
   kb.innerHTML = '';
   KEYBOARD_ROWS.forEach(row => {
     const rowEl = document.createElement('div');
-    rowEl.className = 'flex justify-center gap-[6px]';
+    rowEl.style.cssText = 'display:flex;justify-content:center;gap:6px;';
     row.forEach(key => {
       const btn = document.createElement('button');
       const wide = key === 'ENTER' || key === '⌫';
       const ks = keyMap[key];
-      let bg = '#818384', color = '#fff';
-      if (ks === 'correct') bg = '#538d4e';
-      else if (ks === 'present') bg = '#b59f3b';
-      else if (ks === 'absent') { bg = '#3a3a3c'; color = '#555'; }
-      btn.className = `h-[58px] rounded-[6px] font-bold text-sm uppercase flex items-center justify-center active:scale-95 transition-transform duration-75 cursor-pointer ${wide ? 'min-w-[65px] px-2 text-xs tracking-wide' : 'flex-1 min-w-[40px] max-w-[43px]'}`;
-      btn.style.cssText = `background:${bg};color:${color};border:none;`;
+      let bg='#818384', color='#fff';
+      if (ks==='correct') bg='#538d4e';
+      else if (ks==='present') bg='#b59f3b';
+      else if (ks==='absent') { bg='#3a3a3c'; color='#555'; }
+      btn.style.cssText = `height:58px;border-radius:6px;font-weight:700;font-size:.85rem;text-transform:uppercase;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;background:${bg};color:${color};transition:transform .07s;flex:1;${wide?'min-width:65px;max-width:65px;font-size:.75px;':'min-width:40px;max-width:43px;'}`;
       btn.textContent = key;
-      btn.addEventListener('click', () => handleKey(key));
+      btn.addEventListener('click', () => handleGameKey(key));
       rowEl.appendChild(btn);
     });
     kb.appendChild(rowEl);
   });
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // TOAST
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 let toastTimer = null;
-function showToast(msg, persist = false) {
+function showToast(msg, persist=false) {
   const wrap = document.getElementById('toast-wrap');
   clearTimeout(toastTimer);
   wrap.innerHTML = `<div class="toast-enter bg-white text-black font-bold text-sm px-5 py-2 rounded-full shadow-lg tracking-wide" role="alert">${msg}</div>`;
@@ -458,15 +590,14 @@ function showToast(msg, persist = false) {
 }
 function hideToast() {
   const wrap = document.getElementById('toast-wrap');
-  const toast = wrap.firstChild;
-  if (!toast) return;
-  toast.classList.replace('toast-enter', 'toast-exit');
-  toast.addEventListener('animationend', () => { wrap.innerHTML = ''; }, { once: true });
+  const t = wrap.firstChild; if (!t) return;
+  t.classList.replace('toast-enter','toast-exit');
+  t.addEventListener('animationend', () => { wrap.innerHTML=''; }, { once:true });
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // FLIP REVEAL
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 function revealRow(r, tiles, onDone) {
   isRevealing = true;
   let done = 0;
@@ -474,194 +605,180 @@ function revealRow(r, tiles, onDone) {
     const el = document.getElementById(`tile-${r}-${c}`);
     if (!el) return;
     setTimeout(() => {
-      el.style.transition = 'transform 0.15s ease-in-out';
+      el.style.transition = 'transform .15s ease-in-out';
       el.style.transform  = 'rotateX(-90deg)';
       setTimeout(() => {
         board[r][c] = tile;
-        el.className   = `tile ${tileClasses(tile.state)}`;
+        el.style.cssText = tileStyle(tile.state);
+        el.style.transition = 'transform .15s ease-in-out';
+        el.style.transform  = 'rotateX(0deg)';
         el.textContent = tile.letter;
-        el.style.transform = 'rotateX(0deg)';
         setTimeout(() => {
-          el.style.transition = '';
-          el.style.transform  = '';
-          if (++done === WORD_LENGTH) { isRevealing = false; onDone(); }
+          el.style.transition = ''; el.style.transform = '';
+          if (++done === wordLength) { isRevealing = false; onDone(); }
         }, 160);
       }, 160);
     }, c * 300);
   });
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // GAME MODAL
-// ═══════════════════════════════════════════════════════════════════════════════
-const POS_COLORS = {
-  noun:        'text-[#538d4e]',
-  verb:        'text-[#b59f3b]',
-  adjective:   'text-[#6196c8]',
-  adverb:      'text-[#a06cbf]',
-  pronoun:     'text-[#c86161]',
-  preposition: 'text-[#818384]',
-  conjunction: 'text-[#818384]',
-  interjection:'text-[#818384]',
-};
-
+// ═══════════════════════════════════════════════════════════════
 async function showGameModal(won, rowIdx) {
   document.getElementById('modal-emoji').textContent = won ? '🎉' : '😔';
   document.getElementById('modal-title').textContent = won ? 'You got it!' : 'Better luck next time';
   document.getElementById('modal-sub').textContent   = won
-    ? `Solved in ${rowIdx} ${rowIdx === 1 ? 'guess' : 'guesses'}`
+    ? `Solved in ${rowIdx} ${rowIdx===1?'guess':'guesses'}`
     : 'The word was';
 
-  // Render letter tiles
   const wordEl = document.getElementById('modal-word');
   wordEl.innerHTML = '';
   target.toUpperCase().split('').forEach(l => {
     const d = document.createElement('div');
-    d.className = 'w-12 h-12 bg-correct rounded-[4px] flex items-center justify-center text-white text-xl font-extrabold';
+    d.style.cssText = 'width:48px;height:48px;background:#538d4e;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.25rem;font-weight:800;';
     d.textContent = l;
     wordEl.appendChild(d);
   });
 
-  // Reset definition block to loading state
   document.getElementById('modal-def-loading').classList.remove('hidden');
   document.getElementById('modal-def-content').classList.add('hidden');
   document.getElementById('modal-def-content').innerHTML = '';
 
-  // Show modal immediately so user isn't waiting on a blank screen
   const card = document.getElementById('game-modal-card');
-  card.classList.remove('modal-enter');
-  void card.offsetWidth;
-  card.classList.add('modal-enter');
+  card.classList.remove('modal-enter'); void card.offsetWidth; card.classList.add('modal-enter');
   document.getElementById('game-modal').classList.remove('hidden');
 
-  // Fetch definition (may already be cached from validation)
   const meanings = await fetchDefinition(target);
   document.getElementById('modal-def-loading').classList.add('hidden');
   const contentEl = document.getElementById('modal-def-content');
 
   if (!meanings) {
-    const searchQuery = encodeURIComponent(`meaning of ${target}`);
+    const searchQ = encodeURIComponent(`meaning of ${target}`);
     contentEl.innerHTML = `
       <p class="text-[#818384] text-xs italic mb-3">No definition found for "<strong class="text-white">${target}</strong>".</p>
-      <a
-        href="https://www.google.com/search?q=${searchQuery}"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="inline-flex items-center gap-2 text-xs font-bold text-white bg-[#1e3a5f] hover:bg-[#1a4f8a] border border-[#2a5a9f] px-4 py-2 rounded-lg transition-colors"
-      >
-        <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10 5.35 0 9.25-3.67 9.25-9.09 0-1.15-.15-1.81-.15-1.81z"/>
-        </svg>
+      <a href="https://www.google.com/search?q=${searchQ}" target="_blank" rel="noopener noreferrer"
+         class="inline-flex items-center gap-2 text-xs font-bold text-white bg-[#1e3a5f] hover:bg-[#1a4f8a] border border-[#2a5a9f] px-4 py-2 rounded-lg transition-colors">
+        <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10 5.35 0 9.25-3.67 9.25-9.09 0-1.15-.15-1.81-.15-1.81z"/></svg>
         Search Google for "<span class="text-[#6fa8dc]">${target}</span>"
-      </a>
-    `;
+      </a>`;
   } else {
     meanings.forEach(({ pos, definition, example }) => {
       const wrap = document.createElement('div');
-      const posColor = POS_COLORS[pos] || 'text-[#818384]';
+      const pc = POS_COLORS[pos] || 'text-[#818384]';
       wrap.innerHTML = `
         <div class="flex items-center gap-2 mb-1">
-          <span class="text-[10px] font-bold uppercase tracking-widest ${posColor}">${pos}</span>
+          <span class="text-[10px] font-bold uppercase tracking-widest ${pc}">${pos}</span>
           <div class="flex-1 h-px bg-[#2a2a2c]"></div>
         </div>
         <p class="text-[#ccc] text-sm leading-relaxed">${definition}</p>
-        ${example ? `<p class="text-[#555] text-xs italic mt-1">"${example}"</p>` : ''}
-      `;
+        ${example ? `<p class="text-[#555] text-xs italic mt-1">"${example}"</p>` : ''}`;
       contentEl.appendChild(wrap);
     });
   }
-
   contentEl.classList.remove('hidden');
 }
-
 function hideGameModal() { document.getElementById('game-modal').classList.add('hidden'); }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // GUESS EVALUATION
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 function evaluateGuess(guess, tgt) {
   const g = guess.toUpperCase().split('');
   const t = tgt.toUpperCase().split('');
-  const result = g.map(l => ({ letter: l, state: 'absent' }));
+  const result = g.map(l => ({ letter:l, state:'absent' }));
   const rem = [...t];
-  g.forEach((l, i) => { if (l === rem[i]) { result[i].state = 'correct'; rem[i] = ''; } });
-  g.forEach((l, i) => {
-    if (result[i].state === 'correct') return;
+  g.forEach((l,i) => { if (l===rem[i]) { result[i].state='correct'; rem[i]=''; } });
+  g.forEach((l,i) => {
+    if (result[i].state==='correct') return;
     const idx = rem.indexOf(l);
-    if (idx !== -1) { result[i].state = 'present'; rem[idx] = ''; }
+    if (idx!==-1) { result[i].state='present'; rem[idx]=''; }
   });
   return result;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// INPUT HANDLING
-// ═══════════════════════════════════════════════════════════════════════════════
-function handleKey(key) {
-  if (status !== 'playing' || isRevealing || isValidating) return;
-  if (key === 'ENTER')   { submitGuess(); return; }
-  if (key === '⌫' || key === 'BACKSPACE') { deleteLetter(); return; }
-  if (/^[A-Z]$/.test(key)) typeLetter(key);
+function checkHardMode(word) {
+  const w = word.toUpperCase();
+  for (const [idx, letter] of Object.entries(hardCorrect)) {
+    if (w[idx] !== letter) return `Position ${+idx+1} must be ${letter}`;
+  }
+  for (const letter of hardPresent) {
+    if (!w.includes(letter)) return `Must use ${letter}`;
+  }
+  return null;
 }
 
-function typeLetter(letter) {
-  if (currentCol >= WORD_LENGTH) return;
-  board[currentRow][currentCol] = { letter, state: 'tbd' };
+// ═══════════════════════════════════════════════════════════════
+// GAME INPUT
+// ═══════════════════════════════════════════════════════════════
+function handleGameKey(key) {
+  if (status !== 'playing' || isRevealing || isValidating) return;
+  if (key === 'ENTER')                            { submitGuess(); return; }
+  if (key === '⌫' || key === 'BACKSPACE')         { deleteGameLetter(); return; }
+  if (/^[A-Z]$/.test(key) && currentCol < wordLength) typeGameLetter(key);
+}
+
+function typeGameLetter(letter) {
+  if (currentCol >= wordLength) return;
+  board[currentRow][currentCol] = { letter, state:'tbd' };
   updateTile(currentRow, currentCol);
   popTile(currentRow, currentCol);
   currentCol++;
 }
 
-function deleteLetter() {
+function deleteGameLetter() {
   if (currentCol === 0) return;
   currentCol--;
-  board[currentRow][currentCol] = { letter: '', state: 'empty' };
+  board[currentRow][currentCol] = { letter:'', state:'empty' };
   updateTile(currentRow, currentCol);
 }
 
 async function submitGuess() {
-  if (currentCol < WORD_LENGTH) {
-    shakeRow(currentRow);
-    showToast('Not enough letters');
-    return;
-  }
-
+  if (currentCol < wordLength) { shakeRow(currentRow); showToast('Not enough letters'); return; }
   const word = board[currentRow].map(t => t.letter).join('').toLowerCase();
 
-  // Show validating indicator and lock input
+  // Hard mode check
+  if (difficulty === 'hard') {
+    const err = checkHardMode(word);
+    if (err) { shakeRow(currentRow); showToast(err); return; }
+  }
+
   isValidating = true;
   document.getElementById('validating').classList.remove('hidden');
-
   const valid = await isValidWord(word);
-
   document.getElementById('validating').classList.add('hidden');
   isValidating = false;
 
-  if (!valid) {
-    shakeRow(currentRow);
-    showToast('Not in dictionary');
-    return;
-  }
+  if (!valid) { shakeRow(currentRow); showToast('Not in dictionary'); return; }
 
   const tiles = evaluateGuess(word, target);
   const won   = tiles.every(t => t.state === 'correct');
 
   revealRow(currentRow, tiles, () => {
-    const rank = { correct: 3, present: 2, absent: 1 };
+    // Update key map
+    const rank = { correct:3, present:2, absent:1 };
     tiles.forEach(({ letter, state }) => {
       const prev = keyMap[letter];
       if (!prev || rank[state] > rank[prev]) keyMap[letter] = state;
     });
     renderKeyboard();
 
-    currentRow++;
-    currentCol = 0;
+    // Update hard mode constraints
+    if (difficulty === 'hard') {
+      tiles.forEach(({ letter, state }, i) => {
+        if (state === 'correct') hardCorrect[i] = letter;
+        if (state === 'present') hardPresent.add(letter);
+      });
+    }
+
+    currentRow++; currentCol = 0;
 
     if (won) {
       status = 'won';
-      showToast(WIN_MESSAGES[Math.min(currentRow - 1, WIN_MESSAGES.length - 1)]);
-      bounceRow(currentRow - 1);
+      showToast(WIN_MSGS[Math.min(currentRow-1, WIN_MSGS.length-1)]);
+      bounceRow(currentRow-1);
       setTimeout(() => showGameModal(true, currentRow), 1600);
-    } else if (currentRow >= MAX_GUESSES) {
+    } else if (currentRow >= maxGuesses) {
       status = 'lost';
       showToast(target.toUpperCase(), true);
       setTimeout(() => showGameModal(false, currentRow), 1600);
@@ -669,62 +786,332 @@ async function submitGuess() {
   });
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // RESET
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 function resetGame() {
   target      = getRandomWord();
-  board       = Array.from({ length: MAX_GUESSES }, () =>
-                  Array.from({ length: WORD_LENGTH }, () => ({ letter: '', state: 'empty' })));
-  currentRow  = 0;
-  currentCol  = 0;
+  board       = Array.from({length:maxGuesses}, () => Array.from({length:wordLength}, () => ({letter:'',state:'empty'})));
+  currentRow  = 0; currentCol = 0;
   keyMap      = {};
   status      = 'playing';
-  isRevealing = false;
-  isValidating = false;
-  hideToast();
-  hideGameModal();
-  renderBoard();
-  renderKeyboard();
+  isRevealing = false; isValidating = false;
+  hardCorrect = {}; hardPresent = new Set();
+  hideToast(); hideGameModal();
+  renderBoard(); renderKeyboard();
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// PHYSICAL KEYBOARD
-// ═══════════════════════════════════════════════════════════════════════════════
-window.addEventListener('keydown', e => {
-  if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === 'Enter')     { handleKey('ENTER');     return; }
-  if (e.key === 'Backspace') { handleKey('BACKSPACE'); return; }
-  if (/^[a-zA-Z]$/.test(e.key)) handleKey(e.key.toUpperCase());
+// ═══════════════════════════════════════════════════════════════
+// SCRATCHPAD
+// ═══════════════════════════════════════════════════════════════
+const MAX_SCRATCH_ROWS = 5;
+let scratchRows   = []; // array of string arrays (letters)
+let roughFocus    = null; // { row, col } | null
+let scratchVisible= false;
+
+function openScratchpad() {
+  scratchVisible = true;
+  const p = document.getElementById('scratchpad');
+  p.classList.remove('hidden');
+  p.classList.add('panel-enter');
+  p.addEventListener('animationend', () => p.classList.remove('panel-enter'), { once:true });
+  renderScratchpad();
+}
+
+function closeScratchpad() {
+  scratchVisible = false;
+  roughFocus = null;
+  document.getElementById('scratchpad').classList.add('hidden');
+}
+
+function addScratchRow() {
+  if (scratchRows.length >= MAX_SCRATCH_ROWS) return;
+  scratchRows.push(Array(wordLength).fill(''));
+  renderScratchpad();
+}
+
+function deleteScratchRow(idx) {
+  scratchRows.splice(idx, 1);
+  if (roughFocus?.row === idx) roughFocus = null;
+  else if (roughFocus && roughFocus.row > idx) roughFocus.row--;
+  renderScratchpad();
+}
+
+function focusScratchTile(row, col) {
+  roughFocus = { row, col };
+  renderScratchpad();
+}
+
+function renderScratchpad() {
+  const container = document.getElementById('scratch-rows');
+  container.innerHTML = '';
+
+  scratchRows.forEach((tiles, ri) => {
+    const rowEl = document.createElement('div');
+    rowEl.style.cssText = 'display:flex;align-items:center;gap:6px;';
+
+    const tilesWrap = document.createElement('div');
+    tilesWrap.style.cssText = 'display:flex;gap:4px;flex:1;';
+
+    tiles.forEach((letter, ci) => {
+      const tile = document.createElement('div');
+      const isFocused = roughFocus?.row === ri && roughFocus?.col === ci;
+      tile.className = `scratch-tile${isFocused?' focused':''}${letter?' has-letter':''}`;
+      tile.textContent = letter;
+      tile.addEventListener('click', (e) => { e.stopPropagation(); focusScratchTile(ri, ci); });
+      tilesWrap.appendChild(tile);
+    });
+
+    const delBtn = document.createElement('button');
+    delBtn.style.cssText = 'width:28px;height:28px;border-radius:6px;border:none;background:#2a1a1a;color:#c84b4b;font-size:1rem;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .1s;';
+    delBtn.innerHTML = '×';
+    delBtn.title = 'Delete row';
+    delBtn.addEventListener('click', () => deleteScratchRow(ri));
+    delBtn.addEventListener('mouseover', () => delBtn.style.background='#3a1a1a');
+    delBtn.addEventListener('mouseout',  () => delBtn.style.background='#2a1a1a');
+
+    rowEl.appendChild(tilesWrap);
+    rowEl.appendChild(delBtn);
+    container.appendChild(rowEl);
+  });
+
+  // Update add button
+  const addBtn = document.getElementById('scratch-add');
+  const atMax  = scratchRows.length >= MAX_SCRATCH_ROWS;
+  addBtn.style.opacity  = atMax ? '0.35' : '1';
+  addBtn.style.cursor   = atMax ? 'not-allowed' : 'pointer';
+  addBtn.disabled       = atMax;
+}
+
+// Handle keyboard input routed to scratchpad
+function handleScratchKey(key) {
+  if (!roughFocus) return false;
+  const { row, col } = roughFocus;
+
+  if (/^[A-Z]$/.test(key)) {
+    scratchRows[row][col] = key;
+    // Advance focus
+    const nextCol = col + 1;
+    if (nextCol < wordLength) roughFocus = { row, col: nextCol };
+    renderScratchpad();
+    return true;
+  }
+
+  if (key === 'BACKSPACE') {
+    if (scratchRows[row][col]) {
+      scratchRows[row][col] = '';
+    } else if (col > 0) {
+      roughFocus = { row, col: col - 1 };
+      scratchRows[row][col - 1] = '';
+    }
+    renderScratchpad();
+    return true;
+  }
+
+  if (key === 'ESCAPE') {
+    roughFocus = null;
+    renderScratchpad();
+    return true;
+  }
+
+  if (key === 'ENTER') {
+    // Move to next row's first tile
+    const nextRow = row + 1;
+    if (nextRow < scratchRows.length) roughFocus = { row: nextRow, col: 0 };
+    else roughFocus = null;
+    renderScratchpad();
+    return true;
+  }
+
+  return false;
+}
+
+// Dragging
+let isDragging = false, dragOffset = { x:0, y:0 };
+
+function initDrag() {
+  const panel  = document.getElementById('scratchpad');
+  const handle = document.getElementById('scratch-header');
+
+  function startDrag(cx, cy) {
+    isDragging = true;
+    const rect = panel.getBoundingClientRect();
+    dragOffset = { x: cx - rect.left, y: cy - rect.top };
+    // Lock to top/left positioning
+    panel.style.bottom = 'auto'; panel.style.right = 'auto';
+    panel.style.left   = `${rect.left}px`;
+    panel.style.top    = `${rect.top}px`;
+  }
+
+  handle.addEventListener('mousedown', e => { e.preventDefault(); startDrag(e.clientX, e.clientY); });
+  handle.addEventListener('touchstart', e => { startDrag(e.touches[0].clientX, e.touches[0].clientY); }, { passive:true });
+
+  document.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    panel.style.left = `${e.clientX - dragOffset.x}px`;
+    panel.style.top  = `${e.clientY - dragOffset.y}px`;
+  });
+
+  document.addEventListener('touchmove', e => {
+    if (!isDragging) return;
+    panel.style.left = `${e.touches[0].clientX - dragOffset.x}px`;
+    panel.style.top  = `${e.touches[0].clientY - dragOffset.y}px`;
+  }, { passive:true });
+
+  document.addEventListener('mouseup',  () => { isDragging = false; });
+  document.addEventListener('touchend', () => { isDragging = false; });
+}
+
+// Clicking outside the scratchpad clears tile focus (but keeps panel open)
+document.addEventListener('click', e => {
+  if (!scratchVisible) return;
+  if (roughFocus && !document.getElementById('scratchpad').contains(e.target)) {
+    roughFocus = null;
+    renderScratchpad();
+  }
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════════════
+let pendingLength = wordLength;
+let pendingDiff   = difficulty;
+let pendingCat    = category;
+
+function openSettings() {
+  pendingLength = wordLength;
+  pendingDiff   = difficulty;
+  pendingCat    = category;
+  syncSettingsPills();
+  document.getElementById('settings-modal').classList.remove('hidden');
+}
+function closeSettings() { document.getElementById('settings-modal').classList.add('hidden'); }
+
+function syncSettingsPills() {
+  document.querySelectorAll('#length-pills .pill').forEach(b => {
+    b.classList.toggle('active', +b.dataset.length === pendingLength);
+  });
+  document.querySelectorAll('#diff-pills .pill').forEach(b => {
+    b.classList.remove('active','active-yellow','active-red');
+    if (b.dataset.diff === pendingDiff) {
+      if (pendingDiff==='easy')   b.classList.add('active');
+      if (pendingDiff==='normal') b.classList.add('active');
+      if (pendingDiff==='hard')   b.classList.add('active-red');
+    }
+  });
+  document.querySelectorAll('#cat-pills .pill').forEach(b => {
+    b.classList.toggle('active', b.dataset.cat === pendingCat);
+  });
+  validateCategoryWarning();
+}
+
+function validateCategoryWarning() {
+  const warn = document.getElementById('cat-warning');
+  if (pendingCat === 'any') { warn.classList.add('hidden'); return; }
+  const catWords = CATEGORY_DATA[pendingCat]?.words?.[pendingLength] || [];
+  if (catWords.length < 4) {
+    warn.textContent = `⚠ Not enough ${CATEGORY_DATA[pendingCat]?.label} words at length ${pendingLength}. Will fall back to Any.`;
+    warn.classList.remove('hidden');
+  } else {
+    warn.classList.add('hidden');
+  }
+}
+
+async function applySettings() {
+  const lengthChanged = pendingLength !== wordLength;
+  wordLength  = pendingLength;
+  difficulty  = pendingDiff;
+  category    = pendingCat;
+  maxGuesses  = difficulty === 'easy' ? 8 : 6;
+
+  // Update header badges
+  const hardBadge = document.getElementById('hard-badge');
+  const catBadge  = document.getElementById('category-badge');
+  hardBadge.classList.toggle('hidden', difficulty !== 'hard');
+  if (category !== 'any') {
+    catBadge.textContent = CATEGORY_DATA[category]?.label || '';
+    catBadge.classList.remove('hidden');
+  } else { catBadge.classList.add('hidden'); }
+
+  // Fetch word pool for new length if needed
+  if (lengthChanged && !poolsByLength[wordLength]) {
+    document.getElementById('btn-apply').textContent = 'Loading…';
+    document.getElementById('btn-apply').disabled = true;
+    await fetchPoolForLength(wordLength);
+    document.getElementById('btn-apply').textContent = 'Apply & New Game';
+    document.getElementById('btn-apply').disabled = false;
+  }
+
+  // Reset scratchpad rows to match new length
+  scratchRows = scratchRows.map(() => Array(wordLength).fill(''));
+  roughFocus = null;
+  if (scratchVisible) renderScratchpad();
+
+  closeSettings();
+  usedWords.clear();
+  resetGame();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// KEYBOARD ROUTING
+// ═══════════════════════════════════════════════════════════════
+window.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const key = e.key === 'Enter' ? 'ENTER'
+            : e.key === 'Backspace' ? 'BACKSPACE'
+            : e.key === 'Escape' ? 'ESCAPE'
+            : /^[a-zA-Z]$/.test(e.key) ? e.key.toUpperCase()
+            : null;
+  if (!key) return;
+
+  // If a scratchpad tile is focused, route there first
+  if (roughFocus !== null && scratchVisible) {
+    const handled = handleScratchKey(key);
+    if (handled) return;
+  }
+
+  // Otherwise route to game
+  if (key !== 'ESCAPE') handleGameKey(key);
+});
+
+// ═══════════════════════════════════════════════════════════════
 // EVENT WIRING
-// ═══════════════════════════════════════════════════════════════════════════════
-document.getElementById('btn-new').addEventListener('click', resetGame);
-document.getElementById('btn-next').addEventListener('click', resetGame);
+// ═══════════════════════════════════════════════════════════════
+document.getElementById('btn-new').addEventListener('click', () => { usedWords.clear(); resetGame(); });
+document.getElementById('btn-next').addEventListener('click', () => { usedWords.clear(); resetGame(); });
 document.getElementById('btn-help').addEventListener('click', () => document.getElementById('help-modal').classList.remove('hidden'));
 document.getElementById('help-close').addEventListener('click', () => document.getElementById('help-modal').classList.add('hidden'));
-document.getElementById('help-modal').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.add('hidden'); });
-document.getElementById('game-modal').addEventListener('click', e => { if (e.target === e.currentTarget) resetGame(); });
+document.getElementById('help-modal').addEventListener('click', e => { if (e.target===e.currentTarget) e.currentTarget.classList.add('hidden'); });
+document.getElementById('game-modal').addEventListener('click', e => { if (e.target===e.currentTarget) resetGame(); });
 
-// ═══════════════════════════════════════════════════════════════════════════════
+document.getElementById('btn-settings').addEventListener('click', openSettings);
+document.getElementById('settings-close').addEventListener('click', closeSettings);
+document.getElementById('settings-modal').addEventListener('click', e => { if (e.target===e.currentTarget) closeSettings(); });
+
+document.querySelectorAll('#length-pills .pill').forEach(b => b.addEventListener('click', () => { pendingLength = +b.dataset.length; syncSettingsPills(); }));
+document.querySelectorAll('#diff-pills .pill').forEach(b => b.addEventListener('click', () => { pendingDiff = b.dataset.diff; syncSettingsPills(); }));
+document.querySelectorAll('#cat-pills .pill').forEach(b => b.addEventListener('click', () => { pendingCat = b.dataset.cat; syncSettingsPills(); }));
+document.getElementById('btn-apply').addEventListener('click', applySettings);
+
+document.getElementById('btn-scratch').addEventListener('click', () => { scratchVisible ? closeScratchpad() : openScratchpad(); });
+document.getElementById('scratch-close').addEventListener('click', closeScratchpad);
+document.getElementById('scratch-add').addEventListener('click', addScratchRow);
+
+initDrag();
+
+// ═══════════════════════════════════════════════════════════════
 // INIT
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 (async () => {
-  const count = await fetchWordPool();
+  const count = await fetchPoolForLength(wordLength);
 
-  // Update badge
   const badge = document.getElementById('word-count-badge');
   badge.textContent = `${count} words`;
   badge.classList.remove('hidden');
 
-  // Short pause so "loaded ✓" message is legible
-  await new Promise(r => setTimeout(r, 600));
-
-  // Hide loading screen with a fade
+  await new Promise(r => setTimeout(r, 500));
   const ls = document.getElementById('loading-screen');
-  ls.style.transition = 'opacity 0.4s ease';
+  ls.style.transition = 'opacity .4s ease';
   ls.style.opacity = '0';
   await new Promise(r => setTimeout(r, 400));
   ls.remove();
